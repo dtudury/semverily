@@ -78,6 +78,8 @@ function _printHelp() {
     console.log("   semverily major");
     console.log("   semverily minor");
     console.log("   semverily patch");
+    console.log("\n# start development on a new version");
+    console.log("   semverily 1.2.3-alpha");
     console.log("\n# publish specific version");
     console.log("   semverily 1.2.3");
     console.log("\n# force publish specific version");
