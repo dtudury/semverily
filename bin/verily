@@ -106,19 +106,19 @@ function _printHelp() {
     console.log("HOW TO USE:");
     console.log("\n# bump build on prerelease");
     console.log("# (sorry you can't name prereleases: '1.2.3', 'major', 'minor', 'patch', or '-h')");
-    console.log("   semverily alpha");
-    console.log("   semverily rc2");
-    console.log("   semverily my-special-name");
+    console.log("   verily alpha");
+    console.log("   verily rc2");
+    console.log("   verily my-special-name");
     console.log("\n# bump part of the version");
-    console.log("   semverily major");
-    console.log("   semverily minor");
-    console.log("   semverily patch");
+    console.log("   verily major");
+    console.log("   verily minor");
+    console.log("   verily patch");
     console.log("\n# start development on a new version");
-    console.log("   semverily 1.2.3-alpha");
+    console.log("   verily 1.2.3-alpha");
     console.log("\n# publish specific version");
-    console.log("   semverily 1.2.3");
+    console.log("   verily 1.2.3");
     console.log("\n# force publish specific version");
-    console.log("   semverily 1.2.3 --force");
+    console.log("   verily 1.2.3 --force");
 }
 
 function _handleCBArgs(err, stdout, stderr, ignoreErrors) {
