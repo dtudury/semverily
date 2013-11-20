@@ -1,0 +1,30 @@
+{
+  "name": "semverily",
+  "preferGlobal": true,
+  "version": "0.0.0",
+  "description": "overly helpful semver version bumper (update package, search for build meta tags in html files, and push a git tag)",
+  "bin": {
+    "semverily": "./bin/semverily"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dtudury/semverily.git"
+  },
+  "keywords": [
+    "semver",
+    "git",
+    "meta",
+    "bump",
+    "build",
+    "version"
+  ],
+  "author": "david tudury",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dtudury/semverily/issues"
+  }
+}
