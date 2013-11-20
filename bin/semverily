@@ -185,12 +185,12 @@ function _calculateNextVersion() {
     }
 }
 function _setTargetBuild() {
-    var testTarget = targetBuild.join('.');
-    if(forceTarget || remoteTags.indexOf(testTarget) === -1) {
-        nextBuild = testTarget;
+    nextBuild = targetBuild.join('.');
+    if(forceTarget || (tags.indexOf(nextBuild) === -1 && remoteTags.indexOf(nextBuild) === -1)) {
         _resumeFunctionStack();
     } else {
-        throw new Error("release already tagged with " + testTarget + " use --force to override");
+        _log("    # release already tagged with " + nextBuild + " use --force to override, --help for help", 1);
+        process.exit(1);
     }
 }
 
@@ -235,6 +235,7 @@ function _requestPermission() {
             _resumeFunctionStack();
         } else {
             _log("    # cancelled (no action taken)", 1);
+            process.exit(1);
         }
     });
     process.stdin.resume();
