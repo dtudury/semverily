@@ -207,11 +207,15 @@ function _deleteRemoteGitTagIfForced() {
             _handleCBArgs(err, stdout, stderr);
             console.log("deleted local tag");
             var command = "git push --delete origin " + nextBuild;
-            child_process.exec(command, function (err, stdout, stderr) {
-                _handleCBArgs(err, stdout, stderr);
-                console.log("deleted remote tag");
-                _resumeFunctionStack();
-            });
+            try {
+                child_process.exec(command, function (err, stdout, stderr) {
+                    _handleCBArgs(err, stdout, stderr);
+                    console.log("deleted remote tag");
+                    _resumeFunctionStack();
+                });
+            } catch(e) {
+                console.log(e);
+            }
         });
     } else {
         _resumeFunctionStack();
@@ -223,6 +227,7 @@ function _tagVersion() {
     child_process.exec(command, function (err, stdout, stderr) {
         _handleCBArgs(err, stdout, stderr);
     });
+    _resumeFunctionStack();
 }
 
 function _savePackageJson() {
