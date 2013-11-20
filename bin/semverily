@@ -154,19 +154,20 @@ function _determineNextVersion() {
     if(targetBuild) {
         _setTargetBuild();
     } else if(prerelease) {
-        _determineNextPreReleaseVersion();
+        _setPreReleaseVersion();
     }
 }
 function _setTargetBuild() {
     var testTarget = targetBuild.join('.');
     if(forceTarget || tags.indexOf(testTarget) === -1) {
         nextBuild = testTarget;
-        return;
+        _resumeFunctionStack();
+    } else {
+        throw new Error("release already tagged with " + testTarget);
     }
-    throw new Error("release already tagged with " + testTarget);
 
 }
-function _determineNextPreReleaseVersion() {
+function _setPreReleaseVersion() {
     var testVersion;
     var today = new Date();
     var incrementee = 0;
