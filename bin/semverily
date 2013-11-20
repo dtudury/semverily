@@ -201,10 +201,16 @@ function _requestPermission() {
 
 function _deleteRemoteGitTagIfForced() {
     if(forceTarget) {
-        child_process.exec("git push origin :" + nextBuild, function (err, stdout, stderr) {
+        var command = "git tag -d " + nextBuild;
+        child_process.exec(command, function (err, stdout, stderr) {
             _handleCBArgs(err, stdout, stderr);
-            console.log("pushed tags");
-            _resumeFunctionStack();
+            console.log("deleted local tag");
+            var command = "git push --delete origin " + nextBuild;
+            child_process.exec(command, function (err, stdout, stderr) {
+                _handleCBArgs(err, stdout, stderr);
+                console.log("deleted remote tag");
+                _resumeFunctionStack();
+            });
         });
     } else {
         _resumeFunctionStack();
