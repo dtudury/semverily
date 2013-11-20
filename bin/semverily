@@ -5,6 +5,7 @@ var fs = require('fs');
 
 var branch;
 var tags;
+var remoteTags;
 var tagsBuildless;
 var currentNoBuildNumber;
 var nextBuild;
@@ -23,11 +24,11 @@ if(process.argv.length < 3) {
     if(re = arg.match(/^(\d+)\.(\d+)\.(\d+)$/)) {
         targetBuild = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
         forceTarget = process.argv[3] === "--force";
-        console.log("setting version: " + targetBuild);
-        console.log("forcing: " + forceTarget);
+        _log("    # version: " + targetBuild);
+        _log("    # forcing: " + forceTarget);
     } else if(re = arg.match(/^(major|minor|patch)$/)) {
         bump = re[1];
-        console.log("bumping " + bump + " version");
+        _log("    # bumping " + bump + " version");
     } else if(arg.match(/^-+h(?:elp)?$/)) {
         _printHelp();
         return;
@@ -36,7 +37,7 @@ if(process.argv.length < 3) {
             throw new Error("prelease can't have '+' in it");
         }
         prerelease = arg;
-        console.log("bumping build on prelease: " + prerelease);
+        _log("    # bumping build on prelease: " + prerelease);
     }
 }
 //return;
@@ -44,9 +45,10 @@ if(process.argv.length < 3) {
 _functionStack = [
     _callGitFetch,
     _saveGitCurrentBranch,
-    _saveExistingGitTags,
+    _getExistingGitTags,
+    _getExistingRemoteGitTags,
     _getCurrentVersion,
-    _determineNextVersion,
+    _calculateNextVersion,
     _requestPermission,
     _deleteRemoteGitTagIfForced,
     _savePackageJson,
@@ -94,19 +96,46 @@ function _handleCBArgs(err, stdout, stderr) {
 //        process.stdout.write(stdout);
     }
 }
-function _callGitFetch() {
-    console.log("git fetch'ing...");
-    child_process.exec("git fetch", function (err, stdout, stderr) {
+
+function _log(comment, color) {
+    //black, red, green, yellow, blue, magenta, cyan, white
+    if(color === undefined) {
+        color = 0;
+    }
+    color = color + 30;
+    console.log("\033[" + color + "m" + comment + "\033[0m");
+}
+
+function _runCommand(command, callback, resume) {
+    _log(command, 4);
+    if(resume === undefined) {
+        resume = true;
+    }
+    child_process.exec(command, function (err, stdout, stderr) {
         _handleCBArgs(err, stdout, stderr);
-        console.log("git fetch'ed");
-        _resumeFunctionStack();
+        _log("    # " + command + " # (complete)", 3);
+        if(callback) {
+            callback(stdout);
+        }
+        if(resume) {
+            _resumeFunctionStack();
+        }
     });
 }
 
-function _saveExistingGitTags() {
-    child_process.exec("git tag", function (err, stdout, stderr) {
-        _handleCBArgs(err, stdout, stderr);
+function _callGitFetch() {
+    _runCommand("git fetch");
+}
+
+function _getExistingGitTags() {
+    _runCommand("git tag", function (stdout) {
         tags = stdout.split(/\r\n|\r|\n/);
+    });
+}
+
+function _getExistingRemoteGitTags() {
+    _runCommand("git ls-remote --tags origin", function (stdout) {
+        remoteTags = stdout.split(/\r\n|\r|\n/);
         tagsBuildless = [];
         for(var i = 0; i < tags.length; i++) {
             var re;
@@ -114,16 +143,13 @@ function _saveExistingGitTags() {
                 tagsBuildless.push(re[0]);
             }
         }
-        _resumeFunctionStack();
     });
 }
 
 function _saveGitCurrentBranch() {
-    child_process.exec("git rev-parse --abbrev-ref HEAD", function (err, stdout, stderr) {
-        _handleCBArgs(err, stdout, stderr);
+    _runCommand("git rev-parse --abbrev-ref HEAD", function (stdout) {
         branch = stdout.split(/\r\n|\r|\n/)[0];
-        console.log("current branch:", branch);
-        _resumeFunctionStack();
+        _log("    # current branch: " + branch, 5);
     });
 }
 
@@ -136,22 +162,22 @@ function _getCurrentVersion() {
         v = [parseInt(v[1]), parseInt(v[2]), parseInt(v[3])];
         currentNoBuildNumber = v.join('.');
 
-        console.log("current version:", currentNoBuildNumber);
+        _log("    # current version: " + currentNoBuildNumber, 5);
         if(meta) {
             var preMatch = meta.match(/-([^+]+)/);
             if(preMatch) {
-                console.log("current pre-release:", preMatch[1]);
+                _log("    # current pre-release: " + preMatch[1], 5);
             }
             var buildMatch = meta.match(/\+(.+)/);
             if(buildMatch) {
-                console.log("current build:", buildMatch[1]);
+                _log("    # current build: " + buildMatch[1], 5);
             }
         }
         _resumeFunctionStack();
     });
 }
 
-function _determineNextVersion() {
+function _calculateNextVersion() {
     if(targetBuild) {
         _setTargetBuild();
     } else if(prerelease) {
@@ -160,7 +186,7 @@ function _determineNextVersion() {
 }
 function _setTargetBuild() {
     var testTarget = targetBuild.join('.');
-    if(forceTarget || tags.indexOf(testTarget) === -1) {
+    if(forceTarget || remoteTags.indexOf(testTarget) === -1) {
         nextBuild = testTarget;
         _resumeFunctionStack();
     } else {
@@ -180,19 +206,19 @@ function _setPreReleaseVersion() {
         incrementee++;
     } while (tags.indexOf(testVersion) >= 0);
     nextBuild = testVersion;
-    console.log("next pre-release version:", nextBuild);
+    _log("    # next pre-release version: " +  nextBuild, 5);
     _resumeFunctionStack();
 }
 
 function _requestPermission() {
-    process.stdout.write("is this okay (yes)?");
+    process.stdout.write("    # is this okay (yes)?");
     process.stdin.on('data', function(data) {
         data = data.split(/\r\n|\r|\n/)[0];
         process.stdin.pause();
         if(data.match(/^(?:yes|y|)$/)) {
             _resumeFunctionStack();
         } else {
-            console.log("cancelled (no action taken)");
+            _log("    # cancelled (no action taken)", 1);
         }
     });
     process.stdin.resume();
@@ -201,36 +227,27 @@ function _requestPermission() {
 
 function _deleteRemoteGitTagIfForced() {
     if(forceTarget && tags.indexOf(nextBuild) !== -1) {
-        console.log("deleting local tag...");
-        var command = "git tag -d " + nextBuild;
-        child_process.exec(command, function (err, stdout, stderr) {
-            _handleCBArgs(err, stdout, stderr);
-            console.log("deleted local tag");
-            var command = "git push --delete origin " + nextBuild;
-            child_process.exec(command, function (err, stdout, stderr) {
-                _handleCBArgs(null, stdout, stderr); //ignore error
-                console.log("deleted remote tag");
+        _runCommand("git tag -d " + nextBuild, function () {
+            if(remoteTags.indexOf(nextBuild) !== -1) {
+                _runCommand("git push --delete origin " + nextBuild);
+            } else {
                 _resumeFunctionStack();
-            });
-        });
+            }
+        }, false);
     } else {
         _resumeFunctionStack();
     }
 }
 
 function _tagVersion() {
-    var command = "git tag -a " + nextBuild + " -m \"auto incremented\"";
-    child_process.exec(command, function (err, stdout, stderr) {
-        _handleCBArgs(err, stdout, stderr);
-    });
-    _resumeFunctionStack();
+    _runCommand("git tag -a " + nextBuild + " -m \"auto incremented\"");
 }
 
 function _savePackageJson() {
     packageJson.version = nextBuild;
     fs.writeFile('package.json', JSON.stringify(packageJson, null, '  '), function (err) {
         _handleCBArgs(err);
-        console.log("successfully updated package.json");
+        _log("    # successfully updated package.json", 6);
         _resumeFunctionStack();
     });
 }
@@ -239,13 +256,13 @@ function _writeInglesideMeta() {
     packageJson.version = nextBuild;
     fs.readFile('ingleside.html', function (err, data) {
         _handleCBArgs(err);
-        console.log("updating ingleside.html");
+        _log("    # updating ingleside.html", 6);
         data = data.toString().replace(/<meta name="build" [^>]*>/, '<meta name="build" content="' + nextBuild + '">');
         fs.writeFile('ingleside.html', data, function (err) {
             if (err) {
                 throw err;
             }
-            console.log("successfully updated ingleside.html");
+            _log("    # successfully updated ingleside.html", 6);
             _resumeFunctionStack();
         });
     });
@@ -255,13 +272,13 @@ function _writeIndexMeta() {
     packageJson.version = nextBuild;
     fs.readFile('index.html', function (err, data) {
         _handleCBArgs(err);
-        console.log("updating index.html");
+        _log("    # updating index.html", 6);
         data = data.toString().replace(/<meta name="build" [^>]*>/, '<meta name="build" content="' + nextBuild + '">');
         fs.writeFile('index.html', data, function (err) {
             if (err) {
                 throw err;
             }
-            console.log("successfully updated ingleside.html");
+            _log("    # successfully updated ingleside.html", 6);
             _resumeFunctionStack();
         });
     });
@@ -269,11 +286,7 @@ function _writeIndexMeta() {
 
 function _callGitCommit() {
     var command = "git commit -am \"automatically changing version to " + nextBuild + "\" --no-verify";
-    child_process.exec(command, function (err, stdout, stderr) {
-        _handleCBArgs(err, stdout, stderr);
-        console.log("created commit");
-        _resumeFunctionStack();
-    });
+    _runCommand(command);
 }
 
 //function _callGitPull() {
@@ -285,22 +298,14 @@ function _callGitCommit() {
 //}
 
 function _callGitPush() {
-    child_process.exec("git push origin head", function (err, stdout, stderr) {
-        _handleCBArgs(err, stdout, stderr);
-        console.log("pushed commit");
-        _resumeFunctionStack();
-    });
+    _runCommand("git push origin head");
 }
 
 function _callGitPushTags() {
-    child_process.exec("git push origin head --tags", function (err, stdout, stderr) {
-        _handleCBArgs(err, stdout, stderr);
-        console.log("pushed tags");
-        _resumeFunctionStack();
-    });
+    _runCommand("git push origin head --tags");
 }
 
 function _announceVersion() {
-    console.log("Version bumped to:  ---==={ " + nextBuild + " }===---");
+    _log("# Version bumped to:  ---==={ " + nextBuild + " }===---", 5);
     _resumeFunctionStack();
 }
