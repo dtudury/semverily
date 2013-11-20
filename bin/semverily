@@ -63,7 +63,6 @@ _functionStack = [
 _resumeFunctionStack();
 
 function _resumeFunctionStack() {
-    console.log("resume");
     if (_functionStack.length) {
         _functionStack.shift()();
     }
@@ -87,14 +86,14 @@ function _printHelp() {
 }
 
 function _handleCBArgs(err, stdout, stderr) {
-    if(err) {
-        throw err;
-    }
     if(stderr) {
         process.stderr.write(stderr);
     }
     if(stdout) {
 //        process.stdout.write(stdout);
+    }
+    if(err) {
+        throw err;
     }
 }
 
