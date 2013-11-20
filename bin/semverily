@@ -16,19 +16,54 @@ var forceTarget = false;
 var prerelease;
 var bump;
 
+function _parseSemVer(str) {
+    var re = str.match(/^(\d+)\.(\d+)\.(\d+)([-+].*)?/);
+    if(!re) {
+        return false;
+    }
+    var output = {};
+    output.version = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
+    output.versionString = function() {
+        return output.version.join(".");
+    }
+    var meta = re[4];
+    if(meta) {
+        var preMatch = meta.match(/-([^+]+)/);
+        if(preMatch) {
+            output.prerelease = preMatch[1];
+        }
+        var buildMatch = meta.match(/\+(.+)/);
+        if(buildMatch) {
+            output.build = buildMatch[1];
+        }
+    }
+    output.toString = function() {
+        var version = output.versionString();
+        if(output.prerelease) {
+            version += "-" + output.prerelease;
+        }
+        if(output.build) {
+            version += "+" + output.build;
+        }
+        return version;
+    }
+    return output;
+}
+
 if(process.argv.length < 3) {
     _printHelp();
     return;
 } else {
     var arg = process.argv[2];
-    var re;
-    if(re = arg.match(/^(\d+)\.(\d+)\.(\d+)$/)) {
-        targetBuild = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
+    var semver;
+    if(semver = _parseSemVer(arg)) {
+        targetBuild = semver.version;
         forceTarget = process.argv[3] === "--force";
-        _log("\n    # version: " + targetBuild, 2);
+        prerelease = semver.prerelease;
+        _log("\n    # version: " + semver.toString(), 2);
         _log("    # forcing: " + forceTarget + "\n", 2);
-    } else if(re = arg.match(/^(major|minor|patch)$/)) {
-        bump = re[1];
+    } else if(arg.match(/^(major|minor|patch)$/)) {
+        bump = arg;
         _log("\n    # bumping " + bump + " version\n", 2);
     } else if(arg.match(/^-+h(?:elp)?$/)) {
         _printHelp();
@@ -154,6 +189,7 @@ function _saveGitCurrentBranch() {
     });
 }
 
+
 function _getCurrentVersion() {
     fs.readFile('package.json', function (err, data) {
         _handleCBArgs(err);
@@ -188,7 +224,10 @@ function _calculateNextVersion() {
 }
 function _setTargetBuild() {
     nextBuild = targetBuild.join('.');
-    if(forceTarget || (tags.indexOf(nextBuild) === -1 && remoteTags.indexOf(nextBuild) === -1)) {
+    if(prerelease) {
+        versionArray = targetBuild;
+        _setPreReleaseVersion();
+    } else if(forceTarget || (tags.indexOf(nextBuild) === -1 && remoteTags.indexOf(nextBuild) === -1)) {
         _resumeFunctionStack();
     } else {
         _log("    # release already tagged with " + nextBuild + " use --force to override, --help for help", 1);
