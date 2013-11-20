@@ -63,6 +63,7 @@ _functionStack = [
 _resumeFunctionStack();
 
 function _resumeFunctionStack() {
+    console.log("resume");
     if (_functionStack.length) {
         _functionStack.shift()();
     }
