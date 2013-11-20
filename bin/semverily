@@ -48,6 +48,7 @@ _functionStack = [
     _getCurrentVersion,
     _determineNextVersion,
     _requestPermission,
+    _deleteRemoteGitTagIfForced,
     _savePackageJson,
 //    _writeInglesideMeta,
 //    _writeIndexMeta,
@@ -198,11 +199,22 @@ function _requestPermission() {
     process.stdin.setEncoding('utf8');
 }
 
+function _deleteRemoteGitTagIfForced() {
+    if(forceTarget) {
+        child_process.exec("git push origin :" + nextBuild, function (err, stdout, stderr) {
+            _handleCBArgs(err, stdout, stderr);
+            console.log("pushed tags");
+            _resumeFunctionStack();
+        });
+    } else {
+        _resumeFunctionStack();
+    }
+}
+
 function _tagVersion() {
     var command = "git tag -a " + nextBuild + " -m \"auto incremented\"";
     child_process.exec(command, function (err, stdout, stderr) {
         _handleCBArgs(err, stdout, stderr);
-        _resumeFunctionStack();
     });
 }
 
