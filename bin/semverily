@@ -7,7 +7,7 @@ var branch;
 var tags;
 var remoteTags;
 var tagsBuildless;
-var currentNoBuildNumber;
+var versionArray;
 var nextBuild;
 var packageJson;
 var targetBuild;
@@ -157,12 +157,11 @@ function _getCurrentVersion() {
     fs.readFile('package.json', function (err, data) {
         _handleCBArgs(err);
         packageJson = JSON.parse(data);
-        var v = packageJson.version.match(/^(\d+)\.(\d+)\.(\d+)([-+].*)?/);
-        var meta = v[4];
-        v = [parseInt(v[1]), parseInt(v[2]), parseInt(v[3])];
-        currentNoBuildNumber = v.join('.');
+        var re = packageJson.version.match(/^(\d+)\.(\d+)\.(\d+)([-+].*)?/);
+        var meta = re[4];
+        versionArray = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
 
-        _log("    # current version: " + currentNoBuildNumber, 5);
+        _log("    # current version: " + versionArray.join("."), 5);
         if(meta) {
             var preMatch = meta.match(/-([^+]+)/);
             if(preMatch) {
@@ -180,6 +179,8 @@ function _getCurrentVersion() {
 function _calculateNextVersion() {
     if(targetBuild) {
         _setTargetBuild();
+    } else if(bump) {
+        _bumpBuild();
     } else if(prerelease) {
         _setPreReleaseVersion();
     }
@@ -192,20 +193,34 @@ function _setTargetBuild() {
     } else {
         throw new Error("release already tagged with " + testTarget + " use --force to override");
     }
-
 }
+
+function _bumpBuild() {
+    do {
+        if(bump === "major") {
+            versionArray[0]++;
+        } else if(bump === "minor") {
+            versionArray[1]++;
+        } else {
+            versionArray[2]++;
+        }
+        nextBuild = versionArray.join(".");
+    } while (tags.indexOf(nextBuild) >= 0 || remoteTags.indexOf(nextBuild) >= 0);
+    _log("    # next bump version: " +  versionArray.join("."), 5);
+    _resumeFunctionStack();
+}
+
 function _setPreReleaseVersion() {
     var testVersion;
     var today = new Date();
     var incrementee = 0;
     do {
-        testVersion = currentNoBuildNumber + "-" + prerelease + "+" + branch + "-" + today.getFullYear() + "." + (today.getMonth() + 1) + "." + today.getDate();
+        nextBuild = versionArray.join(".") + "-" + prerelease + "+" + branch + "-" + today.getFullYear() + "." + (today.getMonth() + 1) + "." + today.getDate();
         if (incrementee) {
-            testVersion += "-" + incrementee;
+            nextBuild += "-" + incrementee;
         }
         incrementee++;
-    } while (tags.indexOf(testVersion) >= 0 || remoteTags.indexOf(testVersion) >= 0);
-    nextBuild = testVersion;
+    } while (tags.indexOf(nextBuild) >= 0 || remoteTags.indexOf(nextBuild) >= 0);
     _log("    # next pre-release version: " +  nextBuild, 5);
     _resumeFunctionStack();
 }
