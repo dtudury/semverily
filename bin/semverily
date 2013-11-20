@@ -1,0 +1,285 @@
+#!/usr/bin/env node
+
+var child_process = require('child_process');
+var fs = require('fs');
+
+var branch;
+var tags;
+var tagsBuildless;
+var currentNoBuildNumber;
+var nextBuild;
+var packageJson;
+var targetBuild;
+var forceTarget = false;
+var prerelease;
+var bump;
+
+if(process.argv.length < 3) {
+    _printHelp();
+    return;
+} else {
+    var arg = process.argv[2];
+    var re;
+    if(re = arg.match(/^(\d+)\.(\d+)\.(\d+)$/)) {
+        targetBuild = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
+        force = process.argv[3] === "--force";
+        console.log("setting version: " + targetBuild);
+        console.log("forcing: " + forceTarget);
+    } else if(re = arg.match(/^(major|minor|patch)$/)) {
+        bump = re[1];
+        console.log("bumping " + bump + " version");
+    } else if(arg.match(/^-+h(?:elp)?$/)) {
+        _printHelp();
+        return;
+    } else {
+        if(arg.match(/\+/)) {
+            throw new Error("prelease can't have '+' in it");
+        }
+        prerelease = arg;
+        console.log("bumping build on prelease: " + prerelease);
+    }
+}
+//return;
+
+_functionStack = [
+    _callGitFetch,
+    _saveGitCurrentBranch,
+    _saveExistingGitTags,
+    _getCurrentVersion,
+    _determineNextVersion,
+    _requestPermission,
+    _savePackageJson,
+//    _writeInglesideMeta,
+//    _writeIndexMeta,
+    _callGitCommit,
+    _callGitPush,
+    _tagVersion,
+    _callGitPushTags,
+    _announceVersion
+];
+_resumeFunctionStack();
+
+function _resumeFunctionStack() {
+    if (_functionStack.length) {
+        _functionStack.shift()();
+    }
+}
+
+function _printHelp() {
+    console.log("HOW TO USE:");
+    console.log("\n# bump build on prerelease");
+    console.log("# (sorry you can't name prereleases: '1.2.3', 'major', 'minor', 'patch', or '-h')");
+    console.log("   semverily alpha");
+    console.log("   semverily rc2");
+    console.log("   semverily my-special-name");
+    console.log("\n# bump part of the version");
+    console.log("   semverily major");
+    console.log("   semverily minor");
+    console.log("   semverily patch");
+    console.log("\n# publish specific version");
+    console.log("   semverily 1.2.3");
+    console.log("\n# force publish specific version");
+    console.log("   semverily 1.2.3 --force");
+}
+
+function _handleCBArgs(err, stdout, stderr) {
+    if(err) {
+        throw err;
+    }
+    if(stderr) {
+        process.stderr.write(stderr);
+    }
+    if(stdout) {
+//        process.stdout.write(stdout);
+    }
+}
+function _callGitFetch() {
+    console.log("git fetch'ing...");
+    child_process.exec("git fetch", function (err, stdout, stderr) {
+        _handleCBArgs(err, stdout, stderr);
+        console.log("git fetch'ed");
+        _resumeFunctionStack();
+    });
+}
+
+function _saveExistingGitTags() {
+    child_process.exec("git tag", function (err, stdout, stderr) {
+        _handleCBArgs(err, stdout, stderr);
+        tags = stdout.split(/\r\n|\r|\n/);
+        tagsBuildless = [];
+        for(var i = 0; i < tags.length; i++) {
+            var re;
+            if(re = tags[i].match(/[^-]*/)) {
+                tagsBuildless.push(re[0]);
+            }
+        }
+        _resumeFunctionStack();
+    });
+}
+
+function _saveGitCurrentBranch() {
+    child_process.exec("git rev-parse --abbrev-ref HEAD", function (err, stdout, stderr) {
+        _handleCBArgs(err, stdout, stderr);
+        branch = stdout.split(/\r\n|\r|\n/)[0];
+        console.log("current branch:", branch);
+        _resumeFunctionStack();
+    });
+}
+
+function _getCurrentVersion() {
+    fs.readFile('package.json', function (err, data) {
+        _handleCBArgs(err);
+        packageJson = JSON.parse(data);
+        var v = packageJson.version.match(/^(\d+)\.(\d+)\.(\d+)([-+].*)?/);
+        var meta = v[4];
+        v = [parseInt(v[1]), parseInt(v[2]), parseInt(v[3])];
+        currentNoBuildNumber = v.join('.');
+
+        console.log("current version:", currentNoBuildNumber);
+        if(meta) {
+            var preMatch = meta.match(/-([^+]+)/);
+            if(preMatch) {
+                console.log("current pre-release:", preMatch[1]);
+            }
+            var buildMatch = meta.match(/\+(.+)/);
+            if(buildMatch) {
+                console.log("current build:", buildMatch[1]);
+            }
+        }
+        _resumeFunctionStack();
+    });
+}
+
+function _determineNextVersion() {
+    if(targetBuild) {
+        _setTargetBuild();
+    } else if(prerelease) {
+        _determineNextPreReleaseVersion();
+    }
+}
+function _setTargetBuild() {
+    var testTarget = targetBuild.join('.');
+    if(forceTarget || tags.indexOf(testTarget) === -1) {
+        nextBuild = testTarget;
+        return;
+    }
+    throw new Error("release already tagged with " + testTarget);
+
+}
+function _determineNextPreReleaseVersion() {
+    var testVersion;
+    var today = new Date();
+    var incrementee = 0;
+    do {
+        testVersion = currentNoBuildNumber + "-" + prerelease + "+" + branch + "-" + today.getFullYear() + "." + (today.getMonth() + 1) + "." + today.getDate();
+        if (incrementee) {
+            testVersion += "-" + incrementee;
+        }
+        incrementee++;
+    } while (tags.indexOf(testVersion) >= 0);
+    nextBuild = testVersion;
+    console.log("next pre-release version:", nextBuild);
+    _resumeFunctionStack();
+}
+
+function _requestPermission() {
+    process.stdout.write("is this okay (yes)?");
+    process.stdin.on('data', function(data) {
+        data = data.split(/\r\n|\r|\n/)[0];
+        process.stdin.pause();
+        if(data.match(/^(?:yes|y|)$/)) {
+            _resumeFunctionStack();
+        } else {
+            console.log("cancelled (no action taken)");
+        }
+    });
+    process.stdin.resume();
+    process.stdin.setEncoding('utf8');
+}
+
+function _tagVersion() {
+    var command = "git tag -a " + nextBuild + " -m \"auto incremented\"";
+    child_process.exec(command, function (err, stdout, stderr) {
+        _handleCBArgs(err, stdout, stderr);
+        _resumeFunctionStack();
+    });
+}
+
+function _savePackageJson() {
+    packageJson.version = nextBuild;
+    fs.writeFile('package.json', JSON.stringify(packageJson, null, '  '), function (err) {
+        _handleCBArgs(err);
+        console.log("successfully updated package.json");
+        _resumeFunctionStack();
+    });
+}
+
+function _writeInglesideMeta() {
+    packageJson.version = nextBuild;
+    fs.readFile('ingleside.html', function (err, data) {
+        _handleCBArgs(err);
+        console.log("updating ingleside.html");
+        data = data.toString().replace(/<meta name="build" [^>]*>/, '<meta name="build" content="' + nextBuild + '">');
+        fs.writeFile('ingleside.html', data, function (err) {
+            if (err) {
+                throw err;
+            }
+            console.log("successfully updated ingleside.html");
+            _resumeFunctionStack();
+        });
+    });
+}
+
+function _writeIndexMeta() {
+    packageJson.version = nextBuild;
+    fs.readFile('index.html', function (err, data) {
+        _handleCBArgs(err);
+        console.log("updating index.html");
+        data = data.toString().replace(/<meta name="build" [^>]*>/, '<meta name="build" content="' + nextBuild + '">');
+        fs.writeFile('index.html', data, function (err) {
+            if (err) {
+                throw err;
+            }
+            console.log("successfully updated ingleside.html");
+            _resumeFunctionStack();
+        });
+    });
+}
+
+function _callGitCommit() {
+    var command = "git commit -am \"automatically changing version to " + nextBuild + "\" --no-verify";
+    child_process.exec(command, function (err, stdout, stderr) {
+        _handleCBArgs(err, stdout, stderr);
+        console.log("created commit");
+        _resumeFunctionStack();
+    });
+}
+
+//function _callGitPull() {
+//    child_process.exec("git pull", function (err, stdout, stderr) {
+//        _handleCBArgs(err, stdout, stderr);
+//        console.log("pulled");
+//        _resumeFunctionStack();
+//    });
+//}
+
+function _callGitPush() {
+    child_process.exec("git push origin head", function (err, stdout, stderr) {
+        _handleCBArgs(err, stdout, stderr);
+        console.log("pushed commit");
+        _resumeFunctionStack();
+    });
+}
+
+function _callGitPushTags() {
+    child_process.exec("git push origin head --tags", function (err, stdout, stderr) {
+        _handleCBArgs(err, stdout, stderr);
+        console.log("pushed tags");
+        _resumeFunctionStack();
+    });
+}
+
+function _announceVersion() {
+    console.log("Version bumped to:  ---==={ " + nextBuild + " }===---");
+    _resumeFunctionStack();
+}
