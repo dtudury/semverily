@@ -1,4 +1,4 @@
-SEMVERILY
+VERILY
 =========
 
 overly helpful semver version bumper
