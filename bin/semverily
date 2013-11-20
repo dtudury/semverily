@@ -200,7 +200,7 @@ function _requestPermission() {
 }
 
 function _deleteRemoteGitTagIfForced() {
-    if(forceTarget) {
+    if(forceTarget && tags.indexOf(nextBuild) !== -1) {
         var command = "git tag -d " + nextBuild;
         child_process.exec(command, function (err, stdout, stderr) {
             _handleCBArgs(err, stdout, stderr);
