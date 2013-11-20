@@ -34,7 +34,7 @@ if(process.argv.length < 3) {
         return;
     } else {
         if(arg.match(/\+/)) {
-            throw new Error("prelease can't have '+' in it");
+            throw new Error("prelease name can't have a '+' in it");
         }
         prerelease = arg;
         _log("    # bumping build on prelease: " + prerelease);
@@ -87,10 +87,10 @@ function _printHelp() {
 
 function _handleCBArgs(err, stdout, stderr, ignoreErrors) {
     if(stderr) {
-        process.stdout.write(stderr);
+//        process.stdout.write(stderr);
     }
     if(stdout) {
-        process.stdout.write(stdout);
+//        process.stdout.write(stdout);
     }
     if(!ignoreErrors && err) {
         throw err;
@@ -204,7 +204,7 @@ function _setPreReleaseVersion() {
             testVersion += "-" + incrementee;
         }
         incrementee++;
-    } while (tags.indexOf(testVersion) >= 0);
+    } while (tags.indexOf(testVersion) >= 0 || remoteTags.indexOf(testVersion) >= 0);
     nextBuild = testVersion;
     _log("    # next pre-release version: " +  nextBuild, 5);
     _resumeFunctionStack();
