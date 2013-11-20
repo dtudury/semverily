@@ -54,6 +54,7 @@ _functionStack = [
     _savePackageJson,
 //    _writeInglesideMeta,
 //    _writeIndexMeta,
+    _updateMetaInHtmlFiles,
     _callGitCommit,
     _callGitPush,
     _tagVersion,
@@ -206,7 +207,6 @@ function _bumpBuild() {
         }
         nextBuild = versionArray.join(".");
     } while (tags.indexOf(nextBuild) >= 0 || remoteTags.indexOf(nextBuild) >= 0);
-    _log("    # next bump version: " +  versionArray.join("."), 5);
     _resumeFunctionStack();
 }
 
@@ -221,11 +221,11 @@ function _setPreReleaseVersion() {
         }
         incrementee++;
     } while (tags.indexOf(nextBuild) >= 0 || remoteTags.indexOf(nextBuild) >= 0);
-    _log("    # next pre-release version: " +  nextBuild, 5);
     _resumeFunctionStack();
 }
 
 function _requestPermission() {
+    _log("    # next version: " +  nextBuild, 5);
     process.stdout.write("    # is this okay (yes)?");
     process.stdin.on('data', function(data) {
         data = data.split(/\r\n|\r|\n/)[0];
@@ -299,18 +299,16 @@ function _writeIndexMeta() {
     });
 }
 
+function _updateMetaInHtmlFiles() {
+    var files = fs.readdirSync('.');
+    console.log(files);
+    _resumeFunctionStack();
+}
+
 function _callGitCommit() {
     var command = "git commit -am \"automatically changing version to " + nextBuild + "\" --no-verify";
     _runCommand(command, null, true, true); //ignore errors (--force may cause a "nothing to commit" error)
 }
-
-//function _callGitPull() {
-//    child_process.exec("git pull", function (err, stdout, stderr) {
-//        _handleCBArgs(err, stdout, stderr);
-//        console.log("pulled");
-//        _resumeFunctionStack();
-//    });
-//}
 
 function _callGitPush() {
     _runCommand("git push origin head");
