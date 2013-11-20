@@ -85,14 +85,14 @@ function _printHelp() {
     console.log("   semverily 1.2.3 --force");
 }
 
-function _handleCBArgs(err, stdout, stderr) {
+function _handleCBArgs(err, stdout, stderr, ignoreErrors) {
     if(stderr) {
         process.stdout.write(stderr);
     }
     if(stdout) {
         process.stdout.write(stdout);
     }
-    if(err) {
+    if(!ignoreErrors && err) {
         throw err;
     }
 }
@@ -106,13 +106,13 @@ function _log(comment, color) {
     console.log("\033[" + color + "m" + comment + "\033[0m");
 }
 
-function _runCommand(command, callback, resume) {
+function _runCommand(command, callback, resume, ignoreErrors) {
     _log(command, 4);
     if(resume === undefined) {
         resume = true;
     }
     child_process.exec(command, function (err, stdout, stderr) {
-        _handleCBArgs(err, stdout, stderr);
+        _handleCBArgs(err, stdout, stderr, ignoreErrors);
         _log("    # " + command + " # (complete)", 3);
         if(callback) {
             callback(stdout);
@@ -286,7 +286,7 @@ function _writeIndexMeta() {
 
 function _callGitCommit() {
     var command = "git commit -am \"automatically changing version to " + nextBuild + "\" --no-verify";
-    _runCommand(command);
+    _runCommand(command, null, true, true); //ignore errors (--force may cause a "nothing to commit" error)
 }
 
 //function _callGitPull() {
