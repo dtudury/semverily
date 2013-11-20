@@ -22,7 +22,7 @@ if(process.argv.length < 3) {
     var re;
     if(re = arg.match(/^(\d+)\.(\d+)\.(\d+)$/)) {
         targetBuild = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
-        force = process.argv[3] === "--force";
+        forceTarget = process.argv[3] === "--force";
         console.log("setting version: " + targetBuild);
         console.log("forcing: " + forceTarget);
     } else if(re = arg.match(/^(major|minor|patch)$/)) {
@@ -163,7 +163,7 @@ function _setTargetBuild() {
         nextBuild = testTarget;
         _resumeFunctionStack();
     } else {
-        throw new Error("release already tagged with " + testTarget);
+        throw new Error("release already tagged with " + testTarget + " use --force to override");
     }
 
 }
