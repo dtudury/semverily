@@ -17,6 +17,7 @@ HOW TO USE:
         semverily alpha
         semverily rc2
         semverily my-special-name
+
     ```
 
 * bump part of the version
@@ -24,18 +25,23 @@ HOW TO USE:
         semverily major
         semverily minor
         semverily patch
+
     ```
 
 * start development on a new version
     ```bash
         semverily 1.2.3-alpha
+
     ```
 
 * publish specific version
     ```bash
         semverily 1.2.3
+
     ```
+
 * force publish specific version
     ```bash
         semverily 1.2.3 --force
+
     ```
