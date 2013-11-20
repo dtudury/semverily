@@ -14,25 +14,25 @@ var forceTarget = false;
 var prerelease;
 var bump;
 
-if (process.argv.length < 3) {
+if(process.argv.length < 3) {
     _printHelp();
     return;
 } else {
     var arg = process.argv[2];
     var re;
-    if (re = arg.match(/^(\d+)\.(\d+)\.(\d+)$/)) {
+    if(re = arg.match(/^(\d+)\.(\d+)\.(\d+)$/)) {
         targetBuild = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
         forceTarget = process.argv[3] === "--force";
         console.log("setting version: " + targetBuild);
         console.log("forcing: " + forceTarget);
-    } else if (re = arg.match(/^(major|minor|patch)$/)) {
+    } else if(re = arg.match(/^(major|minor|patch)$/)) {
         bump = re[1];
         console.log("bumping " + bump + " version");
-    } else if (arg.match(/^-+h(?:elp)?$/)) {
+    } else if(arg.match(/^-+h(?:elp)?$/)) {
         _printHelp();
         return;
     } else {
-        if (arg.match(/\+/)) {
+        if(arg.match(/\+/)) {
             throw new Error("prelease can't have '+' in it");
         }
         prerelease = arg;
@@ -84,13 +84,13 @@ function _printHelp() {
 }
 
 function _handleCBArgs(err, stdout, stderr) {
-    if (err) {
+    if(err) {
         throw err;
     }
-    if (stderr) {
+    if(stderr) {
         process.stderr.write(stderr);
     }
-    if (stdout) {
+    if(stdout) {
 //        process.stdout.write(stdout);
     }
 }
@@ -108,9 +108,9 @@ function _saveExistingGitTags() {
         _handleCBArgs(err, stdout, stderr);
         tags = stdout.split(/\r\n|\r|\n/);
         tagsBuildless = [];
-        for (var i = 0; i < tags.length; i++) {
+        for(var i = 0; i < tags.length; i++) {
             var re;
-            if (re = tags[i].match(/[^-]*/)) {
+            if(re = tags[i].match(/[^-]*/)) {
                 tagsBuildless.push(re[0]);
             }
         }
@@ -137,13 +137,13 @@ function _getCurrentVersion() {
         currentNoBuildNumber = v.join('.');
 
         console.log("current version:", currentNoBuildNumber);
-        if (meta) {
+        if(meta) {
             var preMatch = meta.match(/-([^+]+)/);
-            if (preMatch) {
+            if(preMatch) {
                 console.log("current pre-release:", preMatch[1]);
             }
             var buildMatch = meta.match(/\+(.+)/);
-            if (buildMatch) {
+            if(buildMatch) {
                 console.log("current build:", buildMatch[1]);
             }
         }
@@ -152,15 +152,15 @@ function _getCurrentVersion() {
 }
 
 function _determineNextVersion() {
-    if (targetBuild) {
+    if(targetBuild) {
         _setTargetBuild();
-    } else if (prerelease) {
+    } else if(prerelease) {
         _setPreReleaseVersion();
     }
 }
 function _setTargetBuild() {
     var testTarget = targetBuild.join('.');
-    if (forceTarget || tags.indexOf(testTarget) === -1) {
+    if(forceTarget || tags.indexOf(testTarget) === -1) {
         nextBuild = testTarget;
         _resumeFunctionStack();
     } else {
@@ -186,10 +186,10 @@ function _setPreReleaseVersion() {
 
 function _requestPermission() {
     process.stdout.write("is this okay (yes)?");
-    process.stdin.on('data', function (data) {
+    process.stdin.on('data', function(data) {
         data = data.split(/\r\n|\r|\n/)[0];
         process.stdin.pause();
-        if (data.match(/^(?:yes|y|)$/)) {
+        if(data.match(/^(?:yes|y|)$/)) {
             _resumeFunctionStack();
         } else {
             console.log("cancelled (no action taken)");
@@ -200,7 +200,7 @@ function _requestPermission() {
 }
 
 function _deleteRemoteGitTagIfForced() {
-    if (forceTarget && tags.indexOf(nextBuild) !== -1) {
+    if(forceTarget && tags.indexOf(nextBuild) !== -1) {
         console.log("deleting local tag...");
         var command = "git tag -d " + nextBuild;
         child_process.exec(command, function (err, stdout, stderr) {
@@ -208,11 +208,7 @@ function _deleteRemoteGitTagIfForced() {
             console.log("deleted local tag");
             var command = "git push --delete origin " + nextBuild;
             child_process.exec(command, function (err, stdout, stderr) {
-                try {
-                    _handleCBArgs(err, stdout, stderr);
-                } catch (e) {
-                    console.log(e);
-                }
+                _handleCBArgs(null, stdout, stderr); //ignore error
                 console.log("deleted remote tag");
                 _resumeFunctionStack();
             });
