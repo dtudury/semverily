@@ -2,6 +2,7 @@
 
 var child_process = require('child_process');
 var fs = require('fs');
+var path = require('path');
 
 var branch;
 var tags;
@@ -24,11 +25,11 @@ if(process.argv.length < 3) {
     if(re = arg.match(/^(\d+)\.(\d+)\.(\d+)$/)) {
         targetBuild = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
         forceTarget = process.argv[3] === "--force";
-        _log("    # version: " + targetBuild);
-        _log("    # forcing: " + forceTarget);
+        _log("\n    # version: " + targetBuild, 2);
+        _log("    # forcing: " + forceTarget + "\n", 2);
     } else if(re = arg.match(/^(major|minor|patch)$/)) {
         bump = re[1];
-        _log("    # bumping " + bump + " version");
+        _log("\n    # bumping " + bump + " version\n", 2);
     } else if(arg.match(/^-+h(?:elp)?$/)) {
         _printHelp();
         return;
@@ -37,10 +38,9 @@ if(process.argv.length < 3) {
             throw new Error("prelease name can't have a '+' in it");
         }
         prerelease = arg;
-        _log("    # bumping build on prelease: " + prerelease);
+        _log("\n    # bumping build on prelease: " + prerelease + "\n", 2);
     }
 }
-//return;
 
 _functionStack = [
     _callGitFetch,
@@ -52,8 +52,6 @@ _functionStack = [
     _requestPermission,
     _deleteRemoteGitTagIfForced,
     _savePackageJson,
-//    _writeInglesideMeta,
-//    _writeIndexMeta,
     _updateMetaInHtmlFiles,
     _callGitCommit,
     _callGitPush,
@@ -200,8 +198,11 @@ function _bumpBuild() {
     do {
         if(bump === "major") {
             versionArray[0]++;
+            versionArray[1] = 0;
+            versionArray[2] = 0;
         } else if(bump === "minor") {
             versionArray[1]++;
+            versionArray[2] = 0;
         } else {
             versionArray[2]++;
         }
@@ -300,9 +301,32 @@ function _writeIndexMeta() {
 }
 
 function _updateMetaInHtmlFiles() {
-    var files = fs.readdirSync('.');
-    console.log(files);
+    _digForHtmlFiles('.');
     _resumeFunctionStack();
+}
+
+function _digForHtmlFiles(dir) {
+    var files = fs.readdirSync(dir);
+    for(var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var filePath = path.join(dir, file);
+        var stat = fs.statSync(filePath);
+        if(stat.isDirectory()) {
+            _digForHtmlFiles(filePath);
+        } else if(stat.isFile()) {
+            if(file.match(/\.html?$/)) {
+                var data = fs.readFileSync(filePath).toString();
+                var re = /<meta\s+name\s*=\s*["']build["'][^>]*>/;
+                if(data.match(re)) {
+                    fs.writeFileSync(filePath, data.replace(re, '<meta name="build" content="' + nextBuild + '">'));
+                    _log("    # successfully updated " + filePath, 6);
+                } else {
+                    _log("    # no build meta found (<meta name='build'>) in " + filePath, 6);
+                }
+
+            }
+        }
+    }
 }
 
 function _callGitCommit() {
