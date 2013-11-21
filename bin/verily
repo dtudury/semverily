@@ -52,6 +52,9 @@ function _calculateNextVersion() {
         _nextVersion = packageJsonWrapper.version.clone();
         bump = argv._[0] || semVer.BUILD;
     }
+    if(bump === semVer.BUILD && !_nextVersion.prerelease) {
+        _nextVersion.bump(semVer.PRERELEASE);
+    }
     if (bump && !bump.match(/major|minor|patch|prerelease|build/)) {
         _nextVersion.prerelease = bump;
     }
