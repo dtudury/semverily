@@ -1,7 +1,7 @@
 {
   "name": "verily",
   "preferGlobal": true,
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "overly helpful semver version bumper (update package, search for build meta tags in html files, and push a git tag)",
   "bin": {
     "verily": "./bin/verily"
@@ -26,5 +26,8 @@
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/dtudury/semverily/issues"
+  },
+  "dependencies": {
+    "optimist": "~0.6.0"
   }
 }
