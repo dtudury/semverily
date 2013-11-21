@@ -11,7 +11,7 @@ var packageJsonWrapper = require('../lib/packageJsonWrapper');
 var htmlMetaUpdater = require('../lib/htmlMetaUpdater');
 
 
-if(argv.h || argv.help) {
+if (argv.h || argv.help) {
     pretty.log("HOW TO USE:", pretty.BLACK);
     pretty.log("\n# print this help", pretty.BLUE);
     pretty.log("   verily -h", pretty.GREEN);
@@ -44,30 +44,30 @@ function _calculateNextVersion() {
     _nextVersion = new SemVer(argv._[0]);
     _force = argv.force;
     var bump;
-    if(_nextVersion.valid) {
-        if(!_force && _nextVersion.prerelease) {
+    if (_nextVersion.valid) {
+        if (!_force && _nextVersion.prerelease) {
             bump = semVer.BUILD;
         }
     } else {
         _nextVersion = packageJsonWrapper.version.clone();
         bump = argv._[0] || semVer.BUILD;
     }
-    if(bump && !bump.match(/major|minor|patch|prerelease|build/)) {
+    if (bump && !bump.match(/major|minor|patch|prerelease|build/)) {
         _nextVersion.prerelease = bump;
     }
-    if(_nextVersion.prerelease || bump === semVer.PRERELEASE) {
+    if (_nextVersion.prerelease || bump === semVer.PRERELEASE) {
         var today = new Date();
         _nextVersion.build = gitWrapper.branch + "-" + today.getFullYear() + "." + (today.getMonth() + 1) + "." + today.getDate();
     }
-    if(bump) {
-        if(bump !== semVer.BUILD) {
+    if (bump) {
+        if (bump !== semVer.BUILD) {
             _nextVersion.bump(bump);
         }
-        while(!gitWrapper.isUniqueVersion(_nextVersion)) {
+        while (!gitWrapper.isUniqueVersion(_nextVersion)) {
             _nextVersion.bump(bump);
         }
     }
-    if(!_force && !gitWrapper.isUniqueVersion(_nextVersion)) {
+    if (!_force && !gitWrapper.isUniqueVersion(_nextVersion)) {
         pretty.log("    # release already tagged with " + _nextVersion.toString() + " use --force to override, --help for help", pretty.RED);
         process.exit(1);
     }
@@ -78,10 +78,10 @@ function _calculateNextVersion() {
 function _requestPermission() {
     pretty.log("\n    # next version: " + _nextVersion.toString() + (_force ? " (forcing)" : ""), pretty.GREEN);
     process.stdout.write("    # is this okay (yes)?");
-    process.stdin.on('data', function(data) {
+    process.stdin.on('data', function (data) {
         data = data.split(/\r\n|\r|\n/)[0];
         process.stdin.pause();
-        if(data.match(/^(?:yes|y|)$/)) {
+        if (data.match(/^(?:yes|y|)$/)) {
             commandStack.resume();
         } else {
             pretty.log("    # cancelled (no action taken)", pretty.RED);
@@ -97,31 +97,37 @@ function _deleteDuplicateTags() {
     gitWrapper.deleteDuplicateTags(_nextVersion);
 }
 
+
 function _updateJson() {
     packageJsonWrapper.package.version = _nextVersion.toString();
     packageJsonWrapper.save();
 }
 
+
 function _updateHtml() {
     htmlMetaUpdater.setMeta("build", _nextVersion.toString());
 }
 
+
 function _commit() {
-    if(argv.m) {
+    if (argv.m) {
         gitWrapper.commit(argv.m + " [ " + _nextVersion.toString() + " ]");
     } else {
         gitWrapper.commit("updated version: " + _nextVersion.toString())
     }
 }
 
+
 function _tag() {
     gitWrapper.tag(_nextVersion);
 }
+
 
 function _announceVersion() {
     pretty.log("# Version bumped to:  ---==={ " + _nextVersion.toString() + " }===---", pretty.MAGENTA);
     commandStack.resume();
 }
+
 
 commandStack.stack = [
     gitWrapper.fetch,
@@ -140,398 +146,6 @@ commandStack.stack = [
     gitWrapper.pushTags,
     _announceVersion
 ];
+
+
 commandStack.resume();
-
-/*
-var targetSemVer;
-
-var branch;
-var tags;
-var remoteTags;
-var tagsBuildless;
-var versionArray;
-var nextBuild;
-var packageJson;
-var targetBuild;
-var forceTarget = false;
-var prerelease;
-var bump;
-
-function _parseSemVer(str) {
-    var re = str.match(/^(\d+)\.(\d+)\.(\d+)([-+].*)?/);
-    if(!re) {
-        return false;
-    }
-    var output = {};
-    output.version = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
-    output.versionString = function() {
-        return output.version.join(".");
-    }
-    var meta = re[4];
-    if(meta) {
-        var preMatch = meta.match(/-([^+]+)/);
-        if(preMatch) {
-            output.prerelease = preMatch[1];
-        }
-        var buildMatch = meta.match(/\+(.+)/);
-        if(buildMatch) {
-            output.build = buildMatch[1];
-        }
-    }
-    output.toString = function() {
-        var version = output.versionString();
-        if(output.prerelease) {
-            version += "-" + output.prerelease;
-        }
-        if(output.build) {
-            version += "+" + output.build;
-        }
-        return version;
-    }
-    return output;
-}
-
-if(process.argv.length < 3) {
-    _printHelp();
-    return;
-} else {
-    var arg = process.argv[2];
-    if(arg.match(/^(major|minor|patch)$/)) {
-        bump = arg;
-        _log("\n    # bumping " + bump + " version\n", 2);
-    }
-    var semver;
-    if(semver = semVer.parse(arg)) {
-        targetBuild = semver.version;
-        forceTarget = process.argv[3] === "--force";
-        prerelease = semver.prerelease;
-        _log("\n    # version: " + semver.toString(), 2);
-        _log("    # forcing: " + forceTarget + "\n", 2);
-    } else if(arg.match(/^(major|minor|patch)$/)) {
-        bump = arg;
-        _log("\n    # bumping " + bump + " version\n", 2);
-    } else if(arg.match(/^-+h(?:elp)?$/)) {
-        _printHelp();
-        return;
-    } else {
-        if(arg.match(/\+/)) {
-            throw new Error("prelease name can't have a '+' in it");
-        }
-        prerelease = arg;
-        _log("\n    # bumping build on prelease: " + prerelease + "\n", 2);
-    }
-}
-
-_functionStack = [
-    _callGitFetch,
-    _getCurrentBranchName,
-    _getExistingGitTags,
-    _getExistingRemoteGitTags,
-    _getCurrentVersion,
-    _calculateNextVersion,
-    _requestPermission,
-    _deleteRemoteGitTagIfForced,
-    _savePackageJson,
-    _updateMetaInHtmlFiles,
-    _callGitCommit,
-    _callGitPush,
-    _tagVersion,
-    _callGitPushTags,
-    _announceVersion
-];
-_resumeFunctionStack();
-
-function _resumeFunctionStack() {
-    if (_functionStack.length) {
-        _functionStack.shift()();
-    }
-}
-
-function _printHelp() {
-    console.log("HOW TO USE:");
-    console.log("\n# bump build on prerelease");
-    console.log("# (sorry you can't name prereleases: '1.2.3', 'major', 'minor', 'patch', or '-h')");
-    console.log("   verily alpha");
-    console.log("   verily rc2");
-    console.log("   verily my-special-name");
-    console.log("\n# bump part of the version");
-    console.log("   verily major");
-    console.log("   verily minor");
-    console.log("   verily patch");
-    console.log("\n# start development on a new version");
-    console.log("   verily 1.2.3-alpha");
-    console.log("\n# publish specific version");
-    console.log("   verily 1.2.3");
-    console.log("\n# force publish specific version");
-    console.log("   verily 1.2.3 --force");
-}
-
-function _handleCBArgs(err, stdout, stderr, ignoreErrors) {
-    if(stderr) {
-//        process.stdout.write(stderr);
-    }
-    if(stdout) {
-//        process.stdout.write(stdout);
-    }
-    if(!ignoreErrors && err) {
-        throw err;
-    }
-}
-
-function _log(comment, color) {
-    //black, red, green, yellow, blue, magenta, cyan, white
-    if(color === undefined) {
-        color = 0;
-    }
-    color = color + 30;
-    console.log("\033[" + color + "m" + comment + "\033[0m");
-}
-
-function _runCommand(command, callback, resume, ignoreErrors) {
-    _log(command, 4);
-    if(resume === undefined) {
-        resume = true;
-    }
-    child_process.exec(command, function (err, stdout, stderr) {
-        _handleCBArgs(err, stdout, stderr, ignoreErrors);
-        _log("    # " + command + " # (complete)", 3);
-        if(callback) {
-            callback(stdout);
-        }
-        if(resume) {
-            _resumeFunctionStack();
-        }
-    });
-}
-
-function _callGitFetch() {
-    _runCommand("git fetch");
-}
-
-function _getExistingGitTags() {
-    _runCommand("git tag", function (stdout) {
-        tags = stdout.split(/\r\n|\r|\n/);
-    });
-}
-
-function _getExistingRemoteGitTags() {
-    _runCommand("git ls-remote --tags origin", function (stdout) {
-        remoteTags = stdout.split(/\r\n|\r|\n/);
-        tagsBuildless = [];
-        for(var i = 0; i < tags.length; i++) {
-            var re;
-            if(re = tags[i].match(/[^-] * /)) {
-                tagsBuildless.push(re[0]);
-            }
-        }
-    });
-}
-
-function _getCurrentBranchName() {
-    _runCommand("git rev-parse --abbrev-ref HEAD", function (stdout) {
-        branch = stdout.split(/\r\n|\r|\n/)[0];
-        _log("    # current branch: " + branch, 5);
-    });
-}
-
-
-function _getCurrentVersion() {
-    fs.readFile('package.json', function (err, data) {
-        _handleCBArgs(err);
-        packageJson = JSON.parse(data);
-        var re = packageJson.version.match(/^(\d+)\.(\d+)\.(\d+)([-+].*)?/);
-        var meta = re[4];
-        versionArray = [parseInt(re[1]), parseInt(re[2]), parseInt(re[3])];
-
-        _log("    # current version: " + versionArray.join("."), 5);
-        if(meta) {
-            var preMatch = meta.match(/-([^+]+)/);
-            if(preMatch) {
-                _log("    # current pre-release: " + preMatch[1], 5);
-            }
-            var buildMatch = meta.match(/\+(.+)/);
-            if(buildMatch) {
-                _log("    # current build: " + buildMatch[1], 5);
-            }
-        }
-        _resumeFunctionStack();
-    });
-}
-
-function _calculateNextVersion() {
-    if(targetBuild) {
-        _setTargetBuild();
-    } else if(bump) {
-        _bumpBuild();
-    } else if(prerelease) {
-        _setPreReleaseVersion();
-    }
-}
-function _setTargetBuild() {
-    nextBuild = targetBuild.join('.');
-    if(prerelease) {
-        versionArray = targetBuild;
-        _setPreReleaseVersion();
-    } else if(forceTarget || (tags.indexOf(nextBuild) === -1 && remoteTags.indexOf(nextBuild) === -1)) {
-        _resumeFunctionStack();
-    } else {
-        _log("    # release already tagged with " + nextBuild + " use --force to override, --help for help", 1);
-        process.exit(1);
-    }
-}
-
-function _bumpBuild() {
-    do {
-        if(bump === "major") {
-            versionArray[0]++;
-            versionArray[1] = 0;
-            versionArray[2] = 0;
-        } else if(bump === "minor") {
-            versionArray[1]++;
-            versionArray[2] = 0;
-        } else {
-            versionArray[2]++;
-        }
-        nextBuild = versionArray.join(".");
-    } while (tags.indexOf(nextBuild) >= 0 || remoteTags.indexOf(nextBuild) >= 0);
-    _resumeFunctionStack();
-}
-
-function _setPreReleaseVersion() {
-    var testVersion;
-    var today = new Date();
-    var incrementee = 0;
-    do {
-        nextBuild = versionArray.join(".") + "-" + prerelease + "+" + branch + "-" + today.getFullYear() + "." + (today.getMonth() + 1) + "." + today.getDate();
-        if (incrementee) {
-            nextBuild += "-" + incrementee;
-        }
-        incrementee++;
-    } while (tags.indexOf(nextBuild) >= 0 || remoteTags.indexOf(nextBuild) >= 0);
-    _resumeFunctionStack();
-}
-
-function _requestPermission() {
-    _log("    # next version: " +  nextBuild, 5);
-    process.stdout.write("    # is this okay (yes)?");
-    process.stdin.on('data', function(data) {
-        data = data.split(/\r\n|\r|\n/)[0];
-        process.stdin.pause();
-        if(data.match(/^(?:yes|y|)$/)) {
-            _resumeFunctionStack();
-        } else {
-            _log("    # cancelled (no action taken)", 1);
-            process.exit(1);
-        }
-    });
-    process.stdin.resume();
-    process.stdin.setEncoding('utf8');
-}
-
-function _deleteRemoteGitTagIfForced() {
-    if(forceTarget && tags.indexOf(nextBuild) !== -1) {
-        _runCommand("git tag -d " + nextBuild, function () {
-            if(remoteTags.indexOf(nextBuild) !== -1) {
-                _runCommand("git push --delete origin " + nextBuild);
-            } else {
-                _resumeFunctionStack();
-            }
-        }, false);
-    } else {
-        _resumeFunctionStack();
-    }
-}
-
-function _tagVersion() {
-    _runCommand("git tag -a " + nextBuild + " -m \"auto incremented\"");
-}
-
-function _savePackageJson() {
-    packageJson.version = nextBuild;
-    fs.writeFile('package.json', JSON.stringify(packageJson, null, '  '), function (err) {
-        _handleCBArgs(err);
-        _log("    # successfully updated package.json", 6);
-        _resumeFunctionStack();
-    });
-}
-
-function _writeInglesideMeta() {
-    packageJson.version = nextBuild;
-    fs.readFile('ingleside.html', function (err, data) {
-        _handleCBArgs(err);
-        _log("    # updating ingleside.html", 6);
-        data = data.toString().replace(/<meta name="build" [^>]*>/, '<meta name="build" content="' + nextBuild + '">');
-        fs.writeFile('ingleside.html', data, function (err) {
-            if (err) {
-                throw err;
-            }
-            _log("    # successfully updated ingleside.html", 6);
-            _resumeFunctionStack();
-        });
-    });
-}
-
-function _writeIndexMeta() {
-    packageJson.version = nextBuild;
-    fs.readFile('index.html', function (err, data) {
-        _handleCBArgs(err);
-        _log("    # updating index.html", 6);
-        data = data.toString().replace(/<meta name="build" [^>]*>/, '<meta name="build" content="' + nextBuild + '">');
-        fs.writeFile('index.html', data, function (err) {
-            if (err) {
-                throw err;
-            }
-            _log("    # successfully updated ingleside.html", 6);
-            _resumeFunctionStack();
-        });
-    });
-}
-
-function _updateMetaInHtmlFiles() {
-    _digForHtmlFiles('.');
-    _resumeFunctionStack();
-}
-
-function _digForHtmlFiles(dir) {
-    var files = fs.readdirSync(dir);
-    for(var i = 0; i < files.length; i++) {
-        var file = files[i];
-        var filePath = path.join(dir, file);
-        var stat = fs.statSync(filePath);
-        if(stat.isDirectory()) {
-            _digForHtmlFiles(filePath);
-        } else if(stat.isFile()) {
-            if(file.match(/\.html?$/)) {
-                var data = fs.readFileSync(filePath).toString();
-                var re = /<meta\s+name\s*=\s*["']build["'][^>]*>/;
-                if(data.match(re)) {
-                    fs.writeFileSync(filePath, data.replace(re, '<meta name="build" content="' + nextBuild + '">'));
-                    _log("    # successfully updated " + filePath, 6);
-                } else {
-                    _log("    # no build meta found (<meta name='build'>) in " + filePath, 6);
-                }
-
-            }
-        }
-    }
-}
-
-function _callGitCommit() {
-    var command = "git commit -am \"automatically changing version to " + nextBuild + "\" --no-verify";
-    _runCommand(command, null, true, true); //ignore errors (--force may cause a "nothing to commit" error)
-}
-
-function _callGitPush() {
-    _runCommand("git push origin head");
-}
-
-function _callGitPushTags() {
-    _runCommand("git push origin head --tags");
-}
-
-function _announceVersion() {
-    _log("# Version bumped to:  ---==={ " + nextBuild + " }===---", 5);
-    _resumeFunctionStack();
-}
-
-*/
