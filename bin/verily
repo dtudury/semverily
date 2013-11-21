@@ -120,7 +120,7 @@ function _tag() {
 
 function _announceVersion() {
     pretty.log("# Version bumped to:  ---==={ " + _nextVersion.toString() + " }===---", pretty.MAGENTA);
-    _resumeFunctionStack();
+    commandStack.resume();
 }
 
 commandStack.stack = [
