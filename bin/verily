@@ -114,6 +114,10 @@ function _commit() {
     }
 }
 
+function _tag() {
+    gitWrapper.tag(_nextVersion);
+}
+
 function _announceVersion() {
     pretty.log("# Version bumped to:  ---==={ " + _nextVersion.toString() + " }===---", pretty.MAGENTA);
     _resumeFunctionStack();
@@ -132,8 +136,9 @@ commandStack.stack = [
     _updateHtml,
     _commit,
     gitWrapper.push,
-    gitWrapper.tag,
+    _tag,
     gitWrapper.pushTags,
+    _announceVersion
 ];
 commandStack.resume();
 
