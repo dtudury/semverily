@@ -45,3 +45,9 @@ HOW TO USE:
         verily 1.2.3 --force
 
     ```
+TODO:
+--------
+- config file
+- flag for tagging
+- npm publishing
+- flag for publishing
