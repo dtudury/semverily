@@ -51,3 +51,5 @@ TODO:
 - flag for tagging
 - npm publishing
 - flag for publishing
+- break out components into useful modules
+- make string replacement configurable
