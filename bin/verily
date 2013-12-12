@@ -16,6 +16,8 @@ if (argv.h || argv.help) {
     pretty.log("\n# print this help", pretty.BLUE);
     pretty.log("   verily -h", pretty.GREEN);
     pretty.log("   verily --help", pretty.GREEN);
+    pretty.log("\n# don't tag", pretty.BLUE);
+    pretty.log("   verily --no-tag", pretty.GREEN);
     pretty.log("\n# bump build on prerelease", pretty.BLUE);
     pretty.log("# (sorry you can't name prereleases: '1.2.3', 'major', 'minor', 'patch', or '-h')", pretty.BLUE);
     pretty.log("   verily alpha", pretty.GREEN);
@@ -38,11 +40,13 @@ if (argv.h || argv.help) {
 
 var _nextVersion;
 var _force;
+var _tag;
 
 
 function _calculateNextVersion() {
     _nextVersion = new SemVer(argv._[0]);
     _force = argv.force;
+    _tag = argv.tag;
     var bump;
     if (_nextVersion.valid) {
         if (!_force && _nextVersion.prerelease) {
@@ -121,8 +125,12 @@ function _commit() {
 }
 
 
-function _tag() {
-    gitWrapper.tag(_nextVersion);
+function _git_tag() {
+    if(_tag) gitWrapper.tag(_nextVersion);
+}
+
+function _git_push_tags() {
+    if(_tag) gitWrapper.pushTags();
 }
 
 
@@ -145,8 +153,8 @@ commandStack.stack = [
     _updateHtml,
     _commit,
     gitWrapper.push,
-    _tag,
-    gitWrapper.pushTags,
+    _git_tag,
+    _git_push_tags,
     _announceVersion
 ];
 
