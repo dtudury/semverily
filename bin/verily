@@ -16,7 +16,11 @@ if (argv.h || argv.help) {
     pretty.log("\n# print this help", pretty.BLUE);
     pretty.log("   verily -h", pretty.GREEN);
     pretty.log("   verily --help", pretty.GREEN);
-    pretty.log("\n# don't tag", pretty.BLUE);
+    pretty.log("\n# publish/don't publish", pretty.BLUE);
+    pretty.log("   verily --publish", pretty.GREEN);
+    pretty.log("   verily --no-publish", pretty.GREEN);
+    pretty.log("\n# tag/don't tag", pretty.BLUE);
+    pretty.log("   verily --tag", pretty.GREEN);
     pretty.log("   verily --no-tag", pretty.GREEN);
     pretty.log("\n# bump build on prerelease", pretty.BLUE);
     pretty.log("# (sorry you can't name prereleases: '1.2.3', 'major', 'minor', 'patch', or '-h')", pretty.BLUE);
@@ -41,12 +45,15 @@ if (argv.h || argv.help) {
 var _nextVersion;
 var _force;
 var _tag;
+var _publish;
 
 
 function _calculateNextVersion() {
     _nextVersion = new SemVer(argv._[0]);
     _force = argv.force;
     _tag = argv.tag;
+    console.log(_tag);
+    console.log(_tag);
     var bump;
     if (_nextVersion.valid) {
         if (!_force && _nextVersion.prerelease) {
