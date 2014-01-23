@@ -1,7 +1,7 @@
 {
   "name": "verily",
   "preferGlobal": true,
-  "version": "0.5.8",
+  "version": "0.5.9",
   "description": "overly helpful semver version bumper (update package, search for build meta tags in html files, and push a git tag)",
   "bin": {
     "verily": "./bin/verily"
